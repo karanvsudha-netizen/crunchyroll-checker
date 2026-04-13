@@ -2,28 +2,6 @@ import os
 import asyncio
 import re
 import requests
-from uuid import uuid4
-from user_agent import generate_user_agent
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-
-
-def crunchyroll_check(email: str, password: str):
-    try:
-        url = "https://beta-api.crunchyroll.com/auth/v1/token"
-        
-        headers = {
-            "Host": "beta-api.crunchyroll.com",
-            "Content-Type": "application/x-www-form-urlencoded",
-            "User-Agent": generate_user_agent(),
-            "Accept-Encoding": "gzip"
-        }
-        
-        data = {
-            "grant_type": "passwordimport os
-import asyncio
-import re
-import requests
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
@@ -103,7 +81,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = crunchyroll_check(email, pwd)
         await update.message.reply_text(result)
         
-        await asyncio.sleep(2.5)   # ← You can increase to 5 if you get rate-limited
+        await asyncio.sleep(2.5)
 
 
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
