@@ -21,27 +21,6 @@ def crunchyroll_check(email: str, password: str):
         
         data = {
             "grant_type": "password",
-import os
-import asyncio
-import re
-import requests
-from uuid import uuid4
-from user_agent import generate_user_agent
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-
-
-def crunchyroll_check(email: str, password: str):
-    try:
-        url = "https://beta-api.crunchyroll.com/auth/v1/token"
-        headers = {
-            "Host": "beta-api.crunchyroll.com",
-            "Content-Type": "application/x-www-form-urlencoded",
-            "User-Agent": generate_user_agent(),
-            "Accept-Encoding": "gzip"
-        }
-        data = {
-            "grant_type": "password",
             "username": email,
             "password": password,
             "scope": "offline_access",
@@ -132,7 +111,6 @@ def main():
 
     print("🚀 Webhook Bot Starting...")
 
-    # Railway Webhook Setup
     app.run_webhook(
         listen="0.0.0.0",
         port=int(os.getenv("PORT", 8080)),
